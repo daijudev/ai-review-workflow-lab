@@ -3,11 +3,22 @@ import { useReviewRequests } from './features/review-requests/hooks/useReviewReq
 import { ReviewRequestList } from './features/review-requests/components/ReviewRequestList'
 import { ReviewRequestForm } from './features/review-requests/components/ReviewRequestForm'
 import { Button } from './components/ui/Button'
-import type { CreateReviewRequestInput } from './types'
+import type { CreateReviewRequestInput, ReviewStatus } from './types'
 
 export default function App() {
   const { requests, isLoading, error, addRequest, updateStatus, retry } = useReviewRequests()
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [filterStatus, setFilterStatus] = useState<ReviewStatus | 'all'>('all')
+
+  const filteredRequests =
+    filterStatus === 'all' ? requests : requests.filter((r) => r.status === filterStatus)
+
+  const statusCounts = {
+    all: requests.length,
+    pending: requests.filter((r) => r.status === 'pending').length,
+    in_review: requests.filter((r) => r.status === 'in_review').length,
+    completed: requests.filter((r) => r.status === 'completed').length,
+  }
 
   const handleSubmit = (input: CreateReviewRequestInput) => {
     addRequest(input)
@@ -43,23 +54,30 @@ export default function App() {
 
         <section aria-label="レビュー依頼一覧">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-gray-900">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
               レビュー依頼一覧
-              {!isLoading && !error && (
-                <span className="ml-2 text-sm font-normal text-gray-500">
-                  ({requests.length}件)
-                </span>
+              {isLoading ? (
+                <span className="inline-block h-4 w-8 animate-pulse rounded bg-gray-200" />
+              ) : (
+                !error && (
+                  <span className="text-sm font-normal text-gray-500">({requests.length}件)</span>
+                )
               )}
             </h2>
           </div>
 
           <ReviewRequestList
-            requests={requests}
+            requests={filteredRequests}
             isLoading={isLoading}
             error={error}
             onStatusChange={updateStatus}
             onRetry={retry}
             onCreateNew={() => setIsFormOpen(true)}
+            filter={{
+              status: filterStatus,
+              onChange: setFilterStatus,
+              counts: statusCounts,
+            }}
           />
         </section>
       </main>

@@ -2,6 +2,14 @@ import type { ReviewRequest, ReviewStatus } from '../../../types'
 import { EmptyState } from '../../../components/ui/EmptyState'
 import { ReviewRequestCard } from './ReviewRequestCard'
 
+type StatusCounts = Record<ReviewStatus | 'all', number>
+
+interface FilterState {
+  status: ReviewStatus | 'all'
+  onChange: (status: ReviewStatus | 'all') => void
+  counts: StatusCounts
+}
+
 interface ReviewRequestListProps {
   requests: ReviewRequest[]
   isLoading: boolean
@@ -9,7 +17,15 @@ interface ReviewRequestListProps {
   onStatusChange: (id: string, status: ReviewStatus) => void
   onRetry: () => void
   onCreateNew: () => void
+  filter: FilterState
 }
+
+const TABS: { label: string; status: ReviewStatus | 'all' }[] = [
+  { label: 'すべて', status: 'all' },
+  { label: '待機中', status: 'pending' },
+  { label: 'レビュー中', status: 'in_review' },
+  { label: '完了', status: 'completed' },
+]
 
 function LoadingSkeleton() {
   return (
@@ -41,6 +57,7 @@ export function ReviewRequestList({
   onStatusChange,
   onRetry,
   onCreateNew,
+  filter,
 }: ReviewRequestListProps) {
   if (isLoading) {
     return <LoadingSkeleton />
@@ -67,23 +84,64 @@ export function ReviewRequestList({
     )
   }
 
-  if (requests.length === 0) {
-    return (
-      <EmptyState
-        title="レビュー依頼がありません"
-        description="新しいレビュー依頼を作成して、チームとのレビューを始めましょう。"
-        action={{ label: 'レビュー依頼を作成する', onClick: onCreateNew }}
-      />
-    )
-  }
-
   return (
-    <ul className="space-y-4">
-      {requests.map((request) => (
-        <li key={request.id}>
-          <ReviewRequestCard request={request} onStatusChange={onStatusChange} />
-        </li>
-      ))}
-    </ul>
+    <div>
+      <div className="mb-4 border-b border-gray-200">
+        <nav className="-mb-px flex gap-1" aria-label="ステータスフィルター">
+          {TABS.map(({ label, status }) => {
+            const isActive = filter.status === status
+            const count = filter.counts[status]
+            return (
+              <button
+                key={status}
+                type="button"
+                onClick={() => filter.onChange(status)}
+                aria-current={isActive || undefined}
+                className={`flex items-center gap-1.5 border-b-2 px-3 pb-3 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+              >
+                {label}
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                    isActive
+                      ? 'bg-indigo-100 text-indigo-600'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </nav>
+      </div>
+
+      {requests.length === 0 && filter.status === 'all' && (
+        <EmptyState
+          title="レビュー依頼がありません"
+          description="新しいレビュー依頼を作成して、チームとのレビューを始めましょう。"
+          action={{ label: 'レビュー依頼を作成する', onClick: onCreateNew }}
+        />
+      )}
+
+      {requests.length === 0 && filter.status !== 'all' && (
+        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
+          <p className="text-sm text-gray-500">このステータスのレビュー依頼はありません</p>
+        </div>
+      )}
+
+      {requests.length > 0 && (
+        <ul className="space-y-4">
+          {requests.map((request) => (
+            <li key={request.id}>
+              <ReviewRequestCard request={request} onStatusChange={onStatusChange} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
