@@ -29,6 +29,8 @@ const mockRequests: ReviewRequest[] = [
   },
 ]
 
+const defaultStatusCounts = { all: 0, pending: 0, in_review: 0, completed: 0 }
+
 const defaultProps = {
   requests: [],
   isLoading: false,
@@ -36,6 +38,11 @@ const defaultProps = {
   onStatusChange: vi.fn(),
   onRetry: vi.fn(),
   onCreateNew: vi.fn(),
+  filter: {
+    status: 'all' as const,
+    onChange: vi.fn(),
+    counts: defaultStatusCounts,
+  },
 }
 
 describe('ReviewRequestList', () => {
@@ -86,17 +93,41 @@ describe('ReviewRequestList', () => {
       await user.click(screen.getByRole('button', { name: 'レビュー依頼を作成する' }))
       expect(onCreateNew).toHaveBeenCalledOnce()
     })
+
+    it('フィルター適用後に0件の場合、フィルター用空状態メッセージを表示する', () => {
+      render(
+        <ReviewRequestList
+          {...defaultProps}
+          requests={[]}
+          filter={{
+            status: 'completed',
+            onChange: vi.fn(),
+            counts: { all: 2, pending: 2, in_review: 0, completed: 0 },
+          }}
+        />
+      )
+      expect(screen.getByText('このステータスのレビュー依頼はありません')).toBeInTheDocument()
+      expect(screen.queryByText('レビュー依頼がありません')).not.toBeInTheDocument()
+    })
   })
 
   describe('データあり状態', () => {
+    const withDataProps = {
+      filter: {
+        status: 'all' as const,
+        onChange: vi.fn(),
+        counts: { all: 2, pending: 1, in_review: 1, completed: 0 },
+      },
+    }
+
     it('requestsがある場合、各タイトルを表示する', () => {
-      render(<ReviewRequestList {...defaultProps} requests={mockRequests} />)
+      render(<ReviewRequestList {...defaultProps} {...withDataProps} requests={mockRequests} />)
       expect(screen.getByText('テスト用PR：認証機能実装')).toBeInTheDocument()
       expect(screen.getByText('テスト用PR：ページネーション実装')).toBeInTheDocument()
     })
 
     it('requestsがある場合、リストアイテムが正しい数表示される', () => {
-      render(<ReviewRequestList {...defaultProps} requests={mockRequests} />)
+      render(<ReviewRequestList {...defaultProps} {...withDataProps} requests={mockRequests} />)
       const items = screen.getAllByRole('listitem')
       expect(items).toHaveLength(mockRequests.length)
     })
@@ -107,6 +138,7 @@ describe('ReviewRequestList', () => {
       render(
         <ReviewRequestList
           {...defaultProps}
+          {...withDataProps}
           requests={mockRequests}
           onStatusChange={onStatusChange}
         />
